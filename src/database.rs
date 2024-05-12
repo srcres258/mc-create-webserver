@@ -1,6 +1,7 @@
 use std::fs;
 use std::fs::File;
 use std::io::{Error as IOError, Read};
+use std::path::Path;
 use serde_json::{Map, Value};
 use crate::constants;
 use crate::constants::VersionNum;
@@ -35,7 +36,11 @@ impl Database {
 
     pub fn load_from_file(file_path: String) -> Option<Self> {
         let mut content = String::new();
-        let mut file = File::create(file_path.clone()).ok()?;
+        let mut file = if Path::new(file_path.as_str()).exists() {
+            File::open(file_path.clone()).ok()?
+        } else {
+            File::create(file_path.clone()).ok()?
+        };
         let _ = file.read_to_string(&mut content); // Ignore the result intentionally.
         if content.len() == 0 {
             // If failed to read file or the file is empty, create a new database.
