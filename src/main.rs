@@ -6,6 +6,7 @@ mod database;
 mod app;
 mod constants;
 mod bootstrap;
+mod web;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
