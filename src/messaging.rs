@@ -4,7 +4,8 @@ use serde::{Serialize, Deserialize};
 use crate::data;
 
 pub enum PackType {
-    TrainStationScheduleUpdate
+    TrainStationScheduleUpdate,
+    TrainStationRemoval
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -13,10 +14,16 @@ pub struct TrainStationScheduleUpdate {
     entries: Vec<String>
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TrainStationRemoval {
+    name: String
+}
+
 impl PackType {
     pub fn of(name: &str) -> Option<PackType> {
         match name {
             "TrainStationScheduleUpdate" => Some(Self::TrainStationScheduleUpdate),
+            "TrainStationRemoval" => Some(Self::TrainStationRemoval),
             _ => None
         }
     }
@@ -75,5 +82,15 @@ impl TrainStationScheduleUpdate {
         }
 
         Some(result)
+    }
+}
+
+impl TrainStationRemoval {
+    pub fn new(name: String) -> Self {
+        Self { name }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }

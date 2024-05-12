@@ -11,7 +11,7 @@ use thiserror::Error;
 use tokio::signal;
 use crate::bootstrap::Args;
 use crate::database::Database;
-use crate::messaging::{PackType, TrainStationScheduleUpdate};
+use crate::messaging::{PackType, TrainStationRemoval, TrainStationScheduleUpdate};
 use crate::web;
 
 pub struct App {
@@ -102,6 +102,30 @@ async fn handler_api(
                     }
                 }
                 Err(_) => (StatusCode::BAD_REQUEST, "Invalid JSON for API TrainStationScheduleUpdate.")
+            }
+        }
+        Some(PackType::TrainStationRemoval) => {
+            let removal: Result<TrainStationRemoval, _> = serde_json::from_str(data.as_str());
+            match removal {
+                Ok(removal) => {
+                    let app = app_instance_mut();
+                    let mut found = false;
+                    let mut index = 0usize;
+                    for (i, ts) in app.database().train_stations().iter().enumerate() {
+                        if ts.name() == removal.name().to_string() {
+                            found = true;
+                            index = i;
+                            break;
+                        }
+                    }
+                    if found {
+                        app.database_mut().train_stations_mut().remove(index);
+                        (StatusCode::OK, "OK")
+                    } else {
+                        (StatusCode::NOT_FOUND, "The requested train station is not found in the database.")
+                    }
+                }
+                Err(_) => (StatusCode::BAD_REQUEST, "Invalid JSON for API TrainStationRemoval.")
             }
         }
         None => (StatusCode::BAD_REQUEST, "The request API kind is invalid.")
