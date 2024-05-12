@@ -2,6 +2,7 @@ use std::error::Error;
 use std::future::Future;
 use std::ptr;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use axum::response::Html;
 use axum::Router;
 use axum::routing::{get, post};
@@ -10,10 +11,12 @@ use axum::response::IntoResponse;
 use axum::http::StatusCode;
 use thiserror::Error;
 use tokio::signal;
+use crate::bootstrap::Args;
 use crate::database::Database;
 use crate::messaging::{PackType, TrainStationScheduleUpdate};
 
 pub struct App {
+    bootstrap_args: Args,
     database: Database
 }
 
@@ -24,8 +27,8 @@ pub enum AppInitError {
 }
 
 impl App {
-    pub fn new(database: Database) -> Self {
-        Self { database }
+    pub fn new(bootstrap_args: Args, database: Database) -> Self {
+        Self { bootstrap_args, database }
     }
     
     pub async fn run(
@@ -124,28 +127,23 @@ async fn handler_api(
 }
 
 static mut APP_PTR: *mut App = ptr::null_mut();
-static mut APP: Option<Rc<App>> = None;
 
-pub async fn init() -> Result<(), AppInitError> {
-    let mut app = init_instance("run/config.json".to_string()).await?;
+pub async fn init(args: &Args) -> Result<(), AppInitError> {
+    let app = init_instance(args).await?;
+    // We need to put the data onto heap at first.
+    let box_app = Box::new(app);
+    // Then leak the boxed App to get the address on heap and record it.
     unsafe {
-        APP_PTR = &mut app;
-    }
-
-    // We need to put the App instance into a static variable to reserve the ownership
-    // to keep it from being dropped.
-    let app_rc = Rc::new(app);
-    unsafe {
-        APP = Some(app_rc);
+        APP_PTR = Box::leak(box_app);
     }
 
     Ok(())
 }
 
-async fn init_instance(config_file_path: String) -> Result<App, AppInitError> {
-    let database = Database::load_from_file(config_file_path).ok_or(
+async fn init_instance(args: &Args) -> Result<App, AppInitError> {
+    let database = Database::load_from_file(args.config().clone()).ok_or(
         AppInitError::Database("Error loading database.".to_string()))?;
-    let app = App::new(database);
+    let app = App::new(args.clone(), database);
     Ok(app)
 }
 
@@ -186,16 +184,15 @@ async fn on_app_shutdown() {
 }
 
 async fn do_app_shutdown() {
-    unsafe {
-        app_instance().shutdown("run/config.json".to_string()).await
-    }
+    let app = app_instance();
+    app.shutdown(app.bootstrap_args.config().clone()).await;
 }
 
 pub async fn exit() {
     // Take out and drop the App instance.
     let app;
     unsafe {
-        app = APP.take().unwrap();
+        app = Box::from_raw(APP_PTR);
     }
     drop(app);
 }
