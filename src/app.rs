@@ -35,8 +35,6 @@ impl App {
         &self,
         shutdown_handler: impl Future<Output = ()> + Send + 'static
     ) -> Result<(), Box<dyn Error>>  {
-        println!("Hello, world!");
-
         // build our application with a route
         let app = Router::new()
             .route("/", get(handler))
@@ -46,7 +44,7 @@ impl App {
         // run it
         let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
             .await?;
-        println!("listening on {}", listener.local_addr().unwrap());
+        tracing::info!("listening on {}", listener.local_addr().unwrap());
         axum::serve(listener, app)
             .with_graceful_shutdown(shutdown_handler)
             .await?;

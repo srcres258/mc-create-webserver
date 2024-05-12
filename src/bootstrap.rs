@@ -1,6 +1,9 @@
 use std::env;
 use std::error::Error;
 use clap::Parser;
+use tracing_subscriber::fmt;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 use crate::app;
 
 #[derive(Parser, Debug, Clone)]
@@ -30,6 +33,8 @@ impl Default for Args {
 }
 
 pub async fn exec() -> Result<(), Box<dyn Error>> {
+    tracing_subscriber::registry().with(fmt::layer()).init();
+
     let mut args = Args::parse();
 
     if let Ok(config) = env::var("CONFIG_FILE") {
