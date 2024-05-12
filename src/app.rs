@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::future::Future;
 use std::ptr;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex, MutexGuard};
 use axum::response::Html;
 use axum::Router;
 use axum::routing::{get, post};
