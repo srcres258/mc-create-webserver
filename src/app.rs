@@ -162,20 +162,41 @@ async fn on_app_shutdown() {
             .expect("failed to install Ctrl+C handler");
     };
 
-    #[cfg(unix)]
-        let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
+    #[cfg(unix)] {
+        let sigterm = async {
+            signal::unix::signal(signal::unix::SignalKind::terminate())
+                .expect("failed to install signal handler")
+                .recv()
+                .await;
+        };
+        let sigint = async {
+            signal::unix::signal(signal::unix::SignalKind::interrupt())
+                .expect("failed to install signal handler")
+                .recv()
+                .await;
+        };
+        let sigquit = async {
+            signal::unix::signal(signal::unix::SignalKind::quit())
+                .expect("failed to install signal handler")
+                .recv()
+                .await;
+        };
 
-    #[cfg(not(unix))]
+        tokio::select! {
+            _ = ctrl_c => do_app_shutdown().await,
+            _ = sigterm => do_app_shutdown().await,
+            _ = sigint => do_app_shutdown().await,
+            _ = sigquit => do_app_shutdown().await,
+        }
+    }
+
+    #[cfg(not(unix))] {
         let terminate = std::future::pending::<()>();
 
-    tokio::select! {
-        _ = ctrl_c => do_app_shutdown().await,
-        _ = terminate => do_app_shutdown().await,
+        tokio::select! {
+            _ = ctrl_c => do_app_shutdown().await,
+            _ = terminate => do_app_shutdown().await,
+        }
     }
 }
 
