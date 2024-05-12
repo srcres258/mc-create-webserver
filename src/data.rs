@@ -1,15 +1,18 @@
 use serde_json::{Map, Value};
 
+#[derive(Clone)]
 pub struct TrainStationScheduleEntry {
     time_left: Option<u32>, // Unit: second, None if unknown.
     train_name: String,
     train_destination: String
 }
 
+#[derive(Clone)]
 pub struct TrainStationSchedule {
     entries: Vec<TrainStationScheduleEntry>
 }
 
+#[derive(Clone)]
 pub struct TrainStation {
     name: String,
     schedule: TrainStationSchedule

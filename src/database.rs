@@ -1,7 +1,6 @@
 use std::fs;
 use std::fs::File;
 use std::io::{Error as IOError, Read};
-
 use serde_json::{Map, Value};
 use crate::constants;
 use crate::constants::VersionNum;
@@ -65,6 +64,23 @@ impl Database {
         let json_val_str = json_val.to_string();
         fs::write(file_path, json_val_str)?;
         Ok(())
+    }
+
+    pub fn insert_or_modify_train_stations(&mut self, train_station: TrainStation) {
+        let mut found = false;
+        let mut index = 0usize;
+        for (i, ts) in self.train_stations.iter().enumerate() {
+            if ts.name() == train_station.name() {
+                found = true;
+                index = i;
+                break;
+            }
+        }
+        if found {
+            self.train_stations.remove(index);
+        }
+
+        self.train_stations.push(train_station);
     }
 }
 

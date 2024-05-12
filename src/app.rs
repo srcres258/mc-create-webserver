@@ -28,7 +28,19 @@ impl App {
     pub fn new(bootstrap_args: Args, database: Database) -> Self {
         Self { bootstrap_args, database }
     }
-    
+
+    pub fn bootstrap_args(&self) -> &Args {
+        &self.bootstrap_args
+    }
+
+    pub fn database(&self) -> &Database {
+        &self.database
+    }
+
+    pub fn database_mut(&mut self) -> &mut Database {
+        &mut self.database
+    }
+
     pub async fn run(
         &self,
         shutdown_handler: impl Future<Output = ()> + Send + 'static
@@ -105,15 +117,22 @@ async fn handler_api(
     extract::Path(kind): extract::Path<String>,
     data: String
 ) -> impl IntoResponse {
-    println!("Received API {}: {}", kind, data);
+    tracing::debug!("Received API {}: {}", kind, data);
     let kind_type = PackType::of(kind.as_str());
     match kind_type {
         Some(PackType::TrainStationScheduleUpdate) => {
             let schedule: Result<TrainStationScheduleUpdate, _> = serde_json::from_str(data.as_str());
             match schedule {
                 Ok(schedule) => {
-                    //todo
-                    (StatusCode::OK, "OK")
+                    let ts = schedule.parse_to_data();
+                    match ts {
+                        Some(ts) => {
+                            app_instance_mut().database_mut().insert_or_modify_train_stations(ts);
+                            tracing::debug!("Succeeded API {}", kind);
+                            (StatusCode::OK, "OK")
+                        }
+                        None => (StatusCode::BAD_REQUEST, "Invalid JSON data for API TrainStationScheduleUpdate.")
+                    }
                 }
                 Err(_) => (StatusCode::BAD_REQUEST, "Invalid JSON for API TrainStationScheduleUpdate.")
             }
@@ -202,7 +221,7 @@ async fn on_app_shutdown() {
 
 async fn do_app_shutdown() {
     let app = app_instance();
-    app.shutdown(app.bootstrap_args.config().clone()).await;
+    app.shutdown(app.bootstrap_args().config().clone()).await;
 }
 
 pub async fn exit() {
