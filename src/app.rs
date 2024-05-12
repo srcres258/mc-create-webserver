@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::future::Future;
 use std::ptr;
+use std::rc::Rc;
 use axum::response::Html;
 use axum::Router;
 use axum::routing::{get, post};
@@ -57,36 +58,6 @@ impl App {
     async fn save_database(&self, database_path: String) {
         self.database.save_to_file(database_path).unwrap()
     }
-}
-
-static mut APP_PTR: *mut App = ptr::null_mut();
-
-pub async fn init() -> Result<(), AppInitError> {
-    let mut app = init_instance("run/config.json".to_string()).await?;
-    unsafe {
-        APP_PTR = &mut app;
-    }
-
-    Ok(())
-}
-
-async fn init_instance(config_file_path: String) -> Result<App, AppInitError> {
-    let database = Database::load_from_file(config_file_path).ok_or(
-        AppInitError::Database("Error loading database.".to_string()))?;
-    let app = App::new(database);
-    Ok(app)
-}
-
-pub async fn run() -> Result<(), Box<dyn Error>> {
-    app_instance().run(on_app_shutdown()).await
-}
-
-pub fn app_instance() -> &'static App {
-    unsafe { &*APP_PTR }
-}
-
-pub fn app_instance_mut() -> &'static mut App {
-    unsafe { &mut *APP_PTR }
 }
 
 async fn handler() -> Html<String> {
@@ -152,6 +123,44 @@ async fn handler_api(
     }
 }
 
+static mut APP_PTR: *mut App = ptr::null_mut();
+static mut APP: Option<Rc<App>> = None;
+
+pub async fn init() -> Result<(), AppInitError> {
+    let mut app = init_instance("run/config.json".to_string()).await?;
+    unsafe {
+        APP_PTR = &mut app;
+    }
+
+    // We need to put the App instance into a static variable to reserve the ownership
+    // to keep it from being dropped.
+    let app_rc = Rc::new(app);
+    unsafe {
+        APP = Some(app_rc);
+    }
+
+    Ok(())
+}
+
+async fn init_instance(config_file_path: String) -> Result<App, AppInitError> {
+    let database = Database::load_from_file(config_file_path).ok_or(
+        AppInitError::Database("Error loading database.".to_string()))?;
+    let app = App::new(database);
+    Ok(app)
+}
+
+pub async fn run() -> Result<(), Box<dyn Error>> {
+    app_instance().run(on_app_shutdown()).await
+}
+
+pub fn app_instance() -> &'static App {
+    unsafe { &*APP_PTR }
+}
+
+pub fn app_instance_mut() -> &'static mut App {
+    unsafe { &mut *APP_PTR }
+}
+
 async fn on_app_shutdown() {
     let ctrl_c = async {
         signal::ctrl_c()
@@ -180,4 +189,13 @@ async fn do_app_shutdown() {
     unsafe {
         app_instance().shutdown("run/config.json".to_string()).await
     }
+}
+
+pub async fn exit() {
+    // Take out and drop the App instance.
+    let app;
+    unsafe {
+        app = APP.take().unwrap();
+    }
+    drop(app);
 }
