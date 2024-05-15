@@ -72,8 +72,8 @@ impl App {
     }
 }
 
-async fn handler() -> Html<String> {
-    Html(web::generate_homepage())
+async fn handler() -> impl IntoResponse {
+    web::generate_homepage()
 }
 
 async fn handler_404() -> impl IntoResponse {

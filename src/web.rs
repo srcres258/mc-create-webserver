@@ -1,13 +1,13 @@
-use askama::Template;
+use askama_axum::Template;
 use crate::app;
 
 #[derive(Template)]
 #[template(path = "index.html")]
-struct IndexTemplate {
+pub struct IndexTemplate {
     train_stations: Vec<(String, Vec<(String, String, String)>)>
 }
 
-pub fn generate_homepage() -> String {
+pub fn generate_homepage() -> IndexTemplate {
     let mut temp_train_stations: Vec<(String, Vec<(String, String, String)>)> = Vec::new();
 
     let train_stations = app::app_instance().database().train_stations();
@@ -26,10 +26,7 @@ pub fn generate_homepage() -> String {
         ));
     }
 
-    let temp = IndexTemplate {
+    IndexTemplate {
         train_stations: temp_train_stations
-    };
-    let document = temp.render().unwrap();
-
-    document
+    }
 }
