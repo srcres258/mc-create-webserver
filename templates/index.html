@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h1>Train stations</h1>
+<ul>
+    {% for (name, schedules) in train_stations %}
+    <li>{{ name }}
+        <ul>
+            {% for (time_left, train_name, train_destination) in schedules %}
+            <li>Schedule {{ loop.index0 }}
+                <ul>
+                    <li>Time left: {{ time_left }}</li>
+                    <li>Train name: {{ train_name }}</li>
+                    <li>Train destination: {{ train_destination }}</li>
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </li>
+    {% endfor %}
+</ul>
+</body>
+</html>
